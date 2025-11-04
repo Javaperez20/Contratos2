@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Generador de Contratos</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="header">
+    <h1>Generador de Contratos</h1>
+    <!-- <p>Hogar y Móvil</p> -->
+
+    <!-- Contenedor derecho en el header con botón de engranaje y nombre del Ejecutivo -->
+    <div class="header-right" aria-hidden="false">
+      <button id="gearBtn" class="icon-btn" aria-label="Configuración de Ejecutivo" title="Configuración de Ejecutivo" type="button">⚙️</button>
+      <span id="ejecutivoName" class="ejecutivo-name" aria-live="polite"></span>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- Tarifario / dinámico -->
+    <section class="tarifario panel">
+      <div id="tarifario-root"></div>
+    </section>
+
+    <!-- Formulario de contrato -->
+    <aside class="panel contract-panel">
+      <form id="contractForm" class="contract-form" novalidate>
+        <h2>Datos del Contrato</h2>
+        <label class="label">Nombre del titular
+          <input id="nombre" required />
+        </label>
+        <label class="label">Dirección
+          <input id="direccion" required />
+        </label>
+        <label class="label">Sucursal
+          <input id="sucursal" required />
+        </label>
+        <label class="label">Ciclo de facturación
+          <input id="ciclo" required />
+        </label>
+        <label class="label">Fecha de instalación
+          <input id="fecha" type="date" required />
+        </label>
+
+        <!-- segmented-toggle small para seleccionar modo de obtención de SIM -->
+        <div style="margin-top:8px;">
+          <div class="segmented-toggle small" id="pickupToggle" role="tablist" aria-label="Modo de obtención">
+            <button type="button" data-val="Sucursal" class="active" aria-pressed="true">Sucursal</button>
+            <button type="button" data-val="Domicilio" aria-pressed="false">Domicilio</button>
+          </div>
+        </div>
+      </form>
+
+      <div id="messages" class="messages" aria-live="polite"></div>
+    </aside>
+  </main>
+
+  <!-- Previsualización y botones -->
+  <section class="panel preview-section">
+    <div class="preview-actions">
+      <button id="generateButton" class="btn btn-primary" onclick="document.getElementById('contractForm').requestSubmit();">Generar contrato</button>
+      <button id="visualizarButton" class="btn">Visualizar contrato</button>
+    </div>
+
+    <div class="preview-wrapper">
+      <h3>Previsualización del contrato</h3>
+      <div id="pdf-capture" class="preview-capture">
+        <div id="preview" class="preview-box">Aún no se ha generado ningún contrato.</div>
+      </div>
+    </div>
+  </section>
+
+  <footer class="footer">
+    <div>© <span id="year"></span> · Generador de contratos · Piloto</div>
+  </footer>
+
+  <!-- Modal de Ejecutivo -->
+  <div id="ejecutivoModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="ejecutivoTitle" hidden>
+    <div class="modal-dialog" role="document">
+      <header class="modal-header">
+        <h2 id="ejecutivoTitle">Ejecutivo</h2>
+      </header>
+      <div class="modal-body">
+        <label class="label">Nombre del Ejecutivo
+          <div class="ejecutivo-input-row">
+            <input id="ejecutivoInput" type="text" placeholder="Ingrese nombre del ejecutivo" aria-label="Nombre del Ejecutivo" readonly />
+            <div class="ejecutivo-controls">
+              <button id="editEjecutivoBtn" class="icon-small-btn" title="Editar" aria-label="Editar Ejecutivo" type="button">✏️</button>
+              <button id="deleteEjecutivoBtn" class="icon-small-btn" title="Eliminar" aria-label="Eliminar Ejecutivo" type="button">🗑️</button>
+            </div>
+          </div>
+        </label>
+      </div>
+      <footer class="modal-footer">
+        <button id="cancelEjecutivoBtn" class="btn" type="button">Cancelar</button>
+        <button id="acceptEjecutivoBtn" class="btn btn-primary" type="button">Aceptar</button>
+      </footer>
+    </div>
+  </div>
+
+  <!-- Dependencias JS -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/pizzip@3.1.5/dist/pizzip.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/pizzip@3.1.5/dist/pizzip-utils.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/docxtemplater@3.37.0/build/docxtemplater.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/docx-preview@0.1.15/dist/docx-preview.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+  <!-- Lógica JS -->
+  <script src="db.js"></script>
+  <script src="main.js"></script>
+
+  <script>
+    // Footer year
+    document.getElementById('year').textContent = new Date().getFullYear();
+
+    // Defensive: si alguien presiona Enter dentro de inputs, que no intente enviar por default fuera del requestSubmit path:
+    document.getElementById('contractForm').addEventListener('submit', (e) => {
+      // main.js handles submit; se previene en main.js si corresponde.
+    });
+
+    // Simple initialization for pickupToggle: allow keyboard and click toggling
+    (function initPickupToggle() {
+      const toggle = document.getElementById('pickupToggle');
+      if (!toggle) return;
+      toggle.querySelectorAll('button').forEach(btn => {
+        btn.addEventListener('click', () => {
+          toggle.querySelectorAll('button').forEach(b => {
+            b.classList.remove('active');
+            b.setAttribute('aria-pressed', 'false');
+          });
+          btn.classList.add('active');
+          btn.setAttribute('aria-pressed', 'true');
+        });
+      });
+    })();
+  </script>
+</body>
+</html>
